@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colonel AI — Battlefield</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d1117;
+    color: #c9d1d9;
+    font-family: 'Courier New', monospace;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  header {
+    padding: 8px 16px;
+    background: #161b22;
+    border-bottom: 1px solid #30363d;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 {
+    font-size: 16px;
+    color: #58a6ff;
+    font-weight: 600;
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #3fb950;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+  .grid-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  canvas {
+    border: 1px solid #30363d;
+    cursor: crosshair;
+  }
+  .panel {
+    width: 300px;
+    background: #161b22;
+    border-left: 1px solid #30363d;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+  }
+  .panel h2 {
+    font-size: 13px;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .panel .field {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 4px 0;
+    border-bottom: 1px solid #21262d;
+  }
+  .field .label { color: #8b949e; }
+  .field .value { color: #c9d1d9; font-weight: 600; }
+  .value.friendly { color: #3b82f6; }
+  .value.adversary { color: #ef4444; }
+  .value.active { color: #3fb950; }
+  .value.wounded { color: #d29922; }
+  .value.destroyed { color: #f85149; }
+  .controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin: 8px 0;
+  }
+  .controls .row {
+    display: flex;
+    gap: 4px;
+  }
+  .controls button {
+    width: 48px; height: 36px;
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .controls button:hover { background: #30363d; }
+  .controls button:active { background: #484f58; }
+  .call-btn {
+    width: 100%;
+    padding: 10px;
+    background: #238636;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .call-btn:hover { background: #2ea043; }
+  .call-btn:disabled {
+    background: #21262d;
+    color: #484f58;
+    cursor: not-allowed;
+  }
+  .hangup-btn {
+    width: 100%;
+    padding: 10px;
+    background: #da3633;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .hangup-btn:hover { background: #f85149; }
+  .no-selection {
+    color: #484f58;
+    font-size: 13px;
+    text-align: center;
+    padding: 24px 0;
+  }
+
+  /* --- Call panel --- */
+  .call-panel {
+    border-top: 1px solid #30363d;
+    padding-top: 12px;
+    margin-top: 4px;
+  }
+  .call-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .call-status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .call-status-dot.idle { background: #484f58; }
+  .call-status-dot.connecting { background: #d29922; animation: pulse 1s infinite; }
+  .call-status-dot.connected { background: #3fb950; animation: pulse 2s infinite; }
+  .call-status-dot.ended { background: #f85149; }
+  .call-status-text { color: #8b949e; }
+  .call-status-text.connected { color: #3fb950; }
+
+  .transcript-box {
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 6px;
+    padding: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+    font-size: 11px;
+    margin-top: 8px;
+  }
+  .transcript-entry {
+    padding: 3px 0;
+    border-bottom: 1px solid #161b22;
+    line-height: 1.4;
+  }
+  .transcript-entry.bot { color: #58a6ff; }
+  .transcript-entry.user { color: #3fb950; }
+  .transcript-entry .speaker {
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+
+  /* --- Event log --- */
+  .event-log {
+    background: #161b22;
+    border-top: 1px solid #30363d;
+    height: 160px;
+    overflow-y: auto;
+    padding: 8px 16px;
+    font-size: 12px;
+  }
+  .event-log h2 {
+    font-size: 11px;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .event-entry {
+    padding: 2px 0;
+    color: #8b949e;
+    border-bottom: 1px solid #0d1117;
+  }
+  .event-entry .time { color: #484f58; }
+  .event-entry.CONTACT { color: #f85149; }
+  .event-entry.MOVE { color: #8b949e; }
+  .event-entry.STATUS { color: #d29922; }
+  .event-entry.REPORT { color: #58a6ff; }
+  .event-entry.DISPATCH { color: #a371f7; }
+  .legend {
+    display: flex;
+    gap: 16px;
+    font-size: 11px;
+    color: #8b949e;
+    padding: 4px 0;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .legend-sq {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+  }
+  .dispatch-btn {
+    width: 100%;
+    padding: 10px;
+    background: #1f6feb;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .dispatch-btn:hover { background: #388bfd; }
+  .dispatch-btn.active {
+    background: #58a6ff;
+    animation: pulse 1s infinite;
+  }
+  .cancel-dispatch-btn {
+    width: 100%;
+    padding: 8px;
+    background: #21262d;
+    color: #8b949e;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 12px;
+  }
+  .cancel-dispatch-btn:hover { background: #30363d; color: #c9d1d9; }
+  .dispatch-hint {
+    color: #58a6ff;
+    font-size: 11px;
+    text-align: center;
+    padding: 6px 0;
+    animation: pulse 1s infinite;
+  }
+
+  /* --- Transcript history section --- */
+  .transcript-history {
+    border-top: 1px solid #30363d;
+    padding-top: 12px;
+    margin-top: 4px;
+  }
+  .transcript-history h2 {
+    font-size: 13px;
+    color: #8b949e;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .transcript-empty {
+    color: #484f58;
+    font-size: 12px;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="status-dot"></div>
+  <h1>COLONEL AI - BATTLEFIELD OPERATIONS CENTER</h1>
+</header>
+<div class="main">
+  <div class="grid-container">
+    <canvas id="grid" width="600" height="600"></canvas>
+  </div>
+  <div class="panel" id="panel">
+    <h2>Unit Info</h2>
+    <div id="info-content">
+      <div class="no-selection">Click a unit on the grid to select</div>
+    </div>
+    <div id="call-section"></div>
+    <div id="transcript-history"></div>
+  </div>
+</div>
+<div class="event-log" id="event-log">
+  <h2>Event Log</h2>
+  <div id="events"></div>
+</div>
+
+<audio id="remoteAudio" autoplay></audio>
+
+<script>
+const canvas = document.getElementById('grid');
+const ctx = canvas.getContext('2d');
+const GRID = 20;
+const CELL = canvas.width / GRID;
+
+const BOT_URL = 'http://localhost:7860';
+
+let battleState = null;
+let selectedId = null;
+let ws = null;
+let dispatchMode = false;  // true when waiting for user to click a destination cell
+let hoverCell = null;       // [gx, gy] of cell under cursor (for dispatch preview)
+
+// --- WebRTC call state ---
+let pc = null;            // RTCPeerConnection
+let localStream = null;   // microphone MediaStream
+let callState = 'idle';   // idle | connecting | connected | ended
+let callSoldierId = null; // which soldier we're calling as
+
+// --- WebSocket for battlefield state ---
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onmessage = (e) => {
+    battleState = JSON.parse(e.data);
+    render();
+    renderEvents();
+    // Re-render panel to update position/status if selected unit changed
+    if (selectedId) {
+      renderPanel();
+      renderTranscriptHistory();
+    }
+    // Update live transcript during active call
+    if (callState === 'connected' && callSoldierId) {
+      renderLiveTranscript();
+    }
+  };
+  ws.onclose = () => setTimeout(connectWS, 1000);
+  ws.onerror = () => ws.close();
+}
+connectWS();
+
+// =====================================================
+// GRID RENDERING
+// =====================================================
+function render() {
+  if (!battleState) return;
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Grid lines
+  ctx.strokeStyle = '#1a3a1a';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= GRID; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * CELL, 0);
+    ctx.lineTo(i * CELL, canvas.height);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, i * CELL);
+    ctx.lineTo(canvas.width, i * CELL);
+    ctx.stroke();
+  }
+
+  // Grid coordinates
+  ctx.fillStyle = '#1a3a1a';
+  ctx.font = '8px Courier New';
+  ctx.textAlign = 'center';
+  for (let i = 0; i < GRID; i++) {
+    ctx.fillText(i, i * CELL + CELL/2, 10);
+    ctx.fillText(i, 8, i * CELL + CELL/2 + 3);
+  }
+
+  // Safe zones
+  const SAFE_ZONE_RADIUS = 2;
+  const safeZones = [
+    { x: 2, y: 17, color: 'rgba(59, 130, 246, 0.08)', border: 'rgba(59, 130, 246, 0.25)', label: 'FRIENDLY SAFE ZONE' },
+    { x: 17, y: 2, color: 'rgba(239, 68, 68, 0.08)', border: 'rgba(239, 68, 68, 0.25)', label: 'ADVERSARY SAFE ZONE' },
+  ];
+  for (const zone of safeZones) {
+    const x0 = (zone.x - SAFE_ZONE_RADIUS) * CELL;
+    const y0 = (zone.y - SAFE_ZONE_RADIUS) * CELL;
+    const side = (SAFE_ZONE_RADIUS * 2 + 1) * CELL;
+    ctx.fillStyle = zone.color;
+    ctx.fillRect(x0, y0, side, side);
+    ctx.strokeStyle = zone.border;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(x0, y0, side, side);
+    ctx.setLineDash([]);
+    // Label
+    ctx.fillStyle = zone.border;
+    ctx.font = '7px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText(zone.label, x0 + side / 2, y0 + 9);
+  }
+
+  // Items
+  const items = battleState.items;
+  for (const id in items) {
+    const item = items[id];
+    const cx = item.position[0] * CELL + CELL / 2;
+    const cy = item.position[1] * CELL + CELL / 2;
+    const color = item.faction === 'friendly' ? '#3b82f6' : '#ef4444';
+    const isVehicle = ['tank', 'car', 'medical_car'].includes(item.role);
+    const size = isVehicle ? CELL * 0.4 : CELL * 0.35;
+
+    // Selection ring
+    if (id === selectedId) {
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 2.5;
+      if (isVehicle) {
+        ctx.strokeRect(cx - size - 3, cy - size - 3, (size + 3) * 2, (size + 3) * 2);
+      } else {
+        ctx.beginPath();
+        ctx.arc(cx, cy, size + 3, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    // Unit shape
+    ctx.fillStyle = item.status === 'destroyed' ? '#484f58' : color;
+
+    if (isVehicle) {
+      ctx.fillRect(cx - size, cy - size, size * 2, size * 2);
+    } else {
+      ctx.beginPath();
+      ctx.arc(cx, cy, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Heading indicator
+    if (item.heading !== 'stationary') {
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      let hx = cx, hy = cy;
+      const hlen = size + 4;
+      if (item.heading === 'N') hy -= hlen;
+      else if (item.heading === 'S') hy += hlen;
+      else if (item.heading === 'E') hx += hlen;
+      else if (item.heading === 'W') hx -= hlen;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(hx, hy);
+      ctx.stroke();
+    }
+
+    // Active call indicator — pulsing green ring on the unit we're calling as
+    if (callState === 'connected' && id === callSoldierId) {
+      ctx.strokeStyle = '#3fb950';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([3, 3]);
+      if (isVehicle) {
+        ctx.strokeRect(cx - size - 6, cy - size - 6, (size + 6) * 2, (size + 6) * 2);
+      } else {
+        ctx.beginPath();
+        ctx.arc(cx, cy, size + 6, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+
+    // Dispatch path — dashed line from unit to its destination
+    if (item.destination) {
+      const dx = item.destination[0] * CELL + CELL / 2;
+      const dy = item.destination[1] * CELL + CELL / 2;
+      ctx.strokeStyle = '#58a6ff';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(dx, dy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Destination marker — small diamond
+      ctx.fillStyle = '#58a6ff';
+      ctx.beginPath();
+      ctx.moveTo(dx, dy - 4);
+      ctx.lineTo(dx + 4, dy);
+      ctx.lineTo(dx, dy + 4);
+      ctx.lineTo(dx - 4, dy);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Health bar (skip destroyed units)
+    if (item.status !== 'destroyed') {
+      const hp = item.health ?? 100;
+      const barW = CELL * 0.7;
+      const barH = 3;
+      const barX = cx - barW / 2;
+      const barY = cy - size - 10;
+      // Background
+      ctx.fillStyle = '#30363d';
+      ctx.fillRect(barX, barY, barW, barH);
+      // Fill
+      const pct = hp / 100;
+      ctx.fillStyle = pct > 0.5 ? '#3fb950' : pct > 0.25 ? '#d29922' : '#f85149';
+      ctx.fillRect(barX, barY, barW * pct, barH);
+      // Border
+      ctx.strokeStyle = '#484f58';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(barX, barY, barW, barH);
+    }
+
+    // Callsign label
+    ctx.fillStyle = '#c9d1d9';
+    ctx.font = '9px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText(item.callsign, cx, cy + size + 12);
+
+    // Controlled badge — small "CTRL" indicator
+    if (item.controlled) {
+      ctx.fillStyle = '#facc15';
+      ctx.font = 'bold 7px Courier New';
+      ctx.fillText('CTRL', cx, cy - size - 14);
+    }
+  }
+
+  // Dispatch mode: highlight the hovered cell as potential destination
+  if (dispatchMode && hoverCell) {
+    const hx = hoverCell[0] * CELL;
+    const hy = hoverCell[1] * CELL;
+    ctx.fillStyle = 'rgba(88, 166, 255, 0.15)';
+    ctx.fillRect(hx, hy, CELL, CELL);
+    ctx.strokeStyle = '#58a6ff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(hx + 1, hy + 1, CELL - 2, CELL - 2);
+    // Draw crosshair
+    ctx.beginPath();
+    ctx.moveTo(hx + CELL/2, hy + 4);
+    ctx.lineTo(hx + CELL/2, hy + CELL - 4);
+    ctx.moveTo(hx + 4, hy + CELL/2);
+    ctx.lineTo(hx + CELL - 4, hy + CELL/2);
+    ctx.stroke();
+  }
+}
+
+// =====================================================
+// CLICK TO SELECT
+// =====================================================
+canvas.addEventListener('click', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const gx = Math.floor(mx / CELL);
+  const gy = Math.floor(my / CELL);
+
+  if (!battleState) return;
+
+  // Dispatch mode: click sets the destination for the selected unit
+  if (dispatchMode && selectedId) {
+    dispatchMode = false;
+    canvas.style.cursor = 'crosshair';
+    dispatchToCell(selectedId, gx, gy);
+    render();
+    renderPanel();
+    return;
+  }
+
+  let found = null;
+  for (const id in battleState.items) {
+    const item = battleState.items[id];
+    if (item.position[0] === gx && item.position[1] === gy) {
+      found = id;
+      break;
+    }
+  }
+  selectedId = found;
+  render();
+  renderPanel();
+  renderCallSection();
+  renderTranscriptHistory();
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (!dispatchMode) { hoverCell = null; return; }
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  hoverCell = [Math.floor(mx / CELL), Math.floor(my / CELL)];
+  render();
+});
+
+canvas.addEventListener('mouseleave', () => {
+  hoverCell = null;
+  if (dispatchMode) render();
+});
+
+// =====================================================
+// INFO PANEL
+// =====================================================
+function renderPanel() {
+  const panel = document.getElementById('info-content');
+  if (!selectedId || !battleState || !battleState.items[selectedId]) {
+    panel.innerHTML = '<div class="no-selection">Click a unit on the grid to select</div>';
+    return;
+  }
+  const item = battleState.items[selectedId];
+  const isFriendly = item.faction === 'friendly';
+
+  panel.innerHTML = `
+    <div class="field"><span class="label">ID</span><span class="value">${item.id}</span></div>
+    <div class="field"><span class="label">Callsign</span><span class="value">${item.callsign}</span></div>
+    <div class="field"><span class="label">Role</span><span class="value">${item.role}</span></div>
+    <div class="field"><span class="label">Faction</span><span class="value ${item.faction}">${item.faction}</span></div>
+    <div class="field"><span class="label">Status</span><span class="value ${item.status}">${item.status}</span></div>
+    <div class="field"><span class="label">Health</span><span class="value" style="color:${(item.health ?? 100) > 50 ? '#3fb950' : (item.health ?? 100) > 25 ? '#d29922' : '#f85149'}">${item.health ?? 100}%</span></div>
+    <div class="field"><span class="label">Position</span><span class="value">[${item.position[0]}, ${item.position[1]}]</span></div>
+    <div class="field"><span class="label">Heading</span><span class="value">${item.heading}</span></div>
+    ${item.detail ? `<div class="field"><span class="label">Detail</span><span class="value">${item.detail}</span></div>` : ''}
+    ${item.destination ? `<div class="field"><span class="label">Dispatch</span><span class="value" style="color:#58a6ff">→ [${item.destination[0]}, ${item.destination[1]}]</span></div>` : ''}
+    ${isFriendly ? `<div class="field"><span class="label">Mode</span><span class="value" style="color:${item.controlled ? '#facc15' : '#3fb950'}">${item.controlled ? 'Manual' : 'Autonomous'}</span></div>` : ''}
+
+    ${isFriendly ? `
+      <h2 style="margin-top: 12px;">Control</h2>
+      ${item.controlled ? `
+        <button class="dispatch-btn" style="background:#d29922" onclick="releaseUnit('${item.id}')">Release to AI</button>
+      ` : `
+        <button class="dispatch-btn" style="background:#facc15;color:#0d1117" onclick="controlUnit('${item.id}')">Take Control</button>
+      `}
+
+      ${item.controlled ? `
+        <h2 style="margin-top: 12px;">Movement</h2>
+        <div class="controls">
+          <div class="row"><button onclick="moveUnit('N')">N</button></div>
+          <div class="row">
+            <button onclick="moveUnit('W')">W</button>
+            <button onclick="moveUnit('E')">E</button>
+          </div>
+          <div class="row"><button onclick="moveUnit('S')">S</button></div>
+        </div>
+      ` : ''}
+
+      <h2 style="margin-top: 8px;">Dispatch</h2>
+      ${dispatchMode ? `
+        <div class="dispatch-hint">Click a cell on the grid to set destination</div>
+        <button class="cancel-dispatch-btn" onclick="cancelDispatchMode()">Cancel</button>
+      ` : item.destination ? `
+        <div class="field"><span class="label">En route to</span><span class="value" style="color:#58a6ff">[${item.destination[0]}, ${item.destination[1]}]</span></div>
+        <button class="cancel-dispatch-btn" onclick="cancelDispatch('${item.id}')">Cancel Dispatch</button>
+      ` : `
+        <button class="dispatch-btn" onclick="enterDispatchMode()">Set Destination</button>
+      `}
+    ` : ''}
+
+    <div class="legend" style="margin-top: 12px;">
+      <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div> Friendly</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> Adversary</div>
+      <div class="legend-item"><div class="legend-sq" style="background:#3b82f6"></div> Vehicle</div>
+    </div>
+  `;
+}
+
+// =====================================================
+// CALL SECTION (below info panel)
+// =====================================================
+function renderCallSection() {
+  const section = document.getElementById('call-section');
+
+  // If a call is active, always show the call panel regardless of selection
+  if (callState === 'connecting' || callState === 'connected') {
+    const callerName = callSoldierId && battleState?.items[callSoldierId]
+      ? battleState.items[callSoldierId].callsign : callSoldierId;
+
+    section.innerHTML = `
+      <div class="call-panel">
+        <h2>Radio Call</h2>
+        <div class="call-status">
+          <div class="call-status-dot ${callState}"></div>
+          <span class="call-status-text ${callState}">
+            ${callState === 'connecting' ? 'Connecting...' : `On air as ${callerName}`}
+          </span>
+        </div>
+        <button class="hangup-btn" onclick="hangUp()">End Call</button>
+        <div class="transcript-box" id="transcript"></div>
+      </div>
+    `;
+    return;
+  }
+
+  // Show call button only for selected friendly units when no call is active
+  if (selectedId && battleState?.items[selectedId]?.faction === 'friendly') {
+    const item = battleState.items[selectedId];
+    section.innerHTML = `
+      <div class="call-panel">
+        <h2>Radio Call</h2>
+        <button class="call-btn" onclick="startCall('${item.id}')">
+          &#128222; Call as ${item.callsign}
+        </button>
+        ${callState === 'ended' ? `
+          <div class="call-status" style="margin-top:8px">
+            <div class="call-status-dot ended"></div>
+            <span class="call-status-text">Call ended</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  } else if (callState === 'ended') {
+    section.innerHTML = `
+      <div class="call-panel">
+        <h2>Radio Call</h2>
+        <div class="call-status">
+          <div class="call-status-dot ended"></div>
+          <span class="call-status-text">Call ended</span>
+        </div>
+      </div>
+    `;
+  } else {
+    section.innerHTML = '';
+  }
+}
+
+// =====================================================
+// WEBRTC CALL (Pipecat SmallWebRTC signaling)
+// =====================================================
+let pcId = null;
+let dataChannel = null;
+let sessionId = null;
+
+async function startCall(soldierId) {
+  if (callState === 'connecting' || callState === 'connected') return;
+
+  callSoldierId = soldierId;
+  callState = 'connecting';
+  pcId = null;
+  sessionId = null;
+  renderCallSection();
+
+  try {
+    // Step 1: POST /start — register session with soldier_id in body
+    const startResp = await fetch(`${BOT_URL}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        transport: 'webrtc',
+        enableDefaultIceServers: true,
+        body: { soldier_id: soldierId },
+      }),
+    });
+    if (!startResp.ok) throw new Error(`/start returned ${startResp.status}`);
+    const startData = await startResp.json();
+    sessionId = startData.sessionId;
+
+    // Step 2: Get microphone
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+      }
+    });
+
+    // Step 3: Create peer connection
+    const iceServers = startData.iceConfig?.iceServers || [{ urls: 'stun:stun.l.google.com:19302' }];
+    pc = new RTCPeerConnection({ iceServers });
+
+    // Step 4: Create data channel BEFORE creating offer (Pipecat requires it)
+    dataChannel = pc.createDataChannel('pipecat');
+    dataChannel.onopen = () => console.log('Data channel open');
+    dataChannel.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        console.log('Bot message:', msg);
+      } catch(e) {}
+    };
+
+    // Step 5: Add microphone track
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+    // Handle remote audio (bot's voice)
+    pc.ontrack = (event) => {
+      const audioEl = document.getElementById('remoteAudio');
+      audioEl.srcObject = event.streams[0];
+    };
+
+    pc.onconnectionstatechange = () => {
+      if (!pc) return;
+      if (pc.connectionState === 'connected') {
+        callState = 'connected';
+        renderCallSection();
+        render();
+      } else if (['disconnected', 'failed', 'closed'].includes(pc.connectionState)) {
+        cleanUpCall();
+        renderCallSection();
+        render();
+      }
+    };
+
+    // Collect ICE candidates to send after we get the answer
+    const iceCandidates = [];
+    let answerReceived = false;
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        if (answerReceived && pcId) {
+          // Send immediately
+          sendIceCandidates([{
+            candidate: event.candidate.candidate,
+            sdpMid: event.candidate.sdpMid,
+            sdpMlineIndex: event.candidate.sdpMLineIndex,
+          }]);
+        } else {
+          // Queue until we have the answer
+          iceCandidates.push({
+            candidate: event.candidate.candidate,
+            sdpMid: event.candidate.sdpMid,
+            sdpMlineIndex: event.candidate.sdpMLineIndex,
+          });
+        }
+      }
+    };
+
+    // Step 6: Create offer
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    // Step 7: Send offer via session proxy (carries body from /start → runner_args.body)
+    const resp = await fetch(`${BOT_URL}/sessions/${sessionId}/api/offer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sdp: pc.localDescription.sdp,
+        type: pc.localDescription.type,
+      }),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`/api/offer returned ${resp.status}: ${text}`);
+    }
+
+    const answer = await resp.json();
+    pcId = answer.pc_id;
+    await pc.setRemoteDescription(new RTCSessionDescription({
+      sdp: answer.sdp,
+      type: answer.type,
+    }));
+
+    // Step 8: Flush queued ICE candidates now that we have the pc_id
+    answerReceived = true;
+    if (iceCandidates.length > 0) {
+      sendIceCandidates(iceCandidates);
+    }
+
+  } catch (err) {
+    console.error('Call failed:', err);
+    cleanUpCall();
+    callState = 'ended';
+    renderCallSection();
+  }
+}
+
+function sendIceCandidates(candidates) {
+  if (!pcId) return;
+  fetch(`${BOT_URL}/api/offer`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pc_id: pcId, candidates }),
+  }).catch(err => console.warn('ICE candidate send failed:', err));
+}
+
+function hangUp() {
+  const wasCallingSoldier = callSoldierId;
+  cleanUpCall();
+  renderCallSection();
+  renderTranscriptHistory();
+  render();
+}
+
+function cleanUpCall() {
+  if (dataChannel) {
+    dataChannel.close();
+    dataChannel = null;
+  }
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+  if (pc) {
+    pc.close();
+    pc = null;
+  }
+  pcId = null;
+  sessionId = null;
+  const audioEl = document.getElementById('remoteAudio');
+  audioEl.srcObject = null;
+  callState = 'ended';
+  callSoldierId = null;
+}
+
+// =====================================================
+// MOVEMENT
+// =====================================================
+async function moveUnit(dir) {
+  if (!selectedId) return;
+  await fetch('/api/move', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id: selectedId, direction: dir }),
+  });
+}
+
+// =====================================================
+// DISPATCH
+// =====================================================
+function enterDispatchMode() {
+  dispatchMode = true;
+  canvas.style.cursor = 'cell';
+  renderPanel();
+}
+
+function cancelDispatchMode() {
+  dispatchMode = false;
+  canvas.style.cursor = 'crosshair';
+  renderPanel();
+}
+
+async function dispatchToCell(unitId, gx, gy) {
+  await fetch('/api/dispatch', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ unit_id: unitId, target_x: gx, target_y: gy }),
+  });
+}
+
+async function cancelDispatch(unitId) {
+  await fetch('/api/cancel_dispatch', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ unit_id: unitId }),
+  });
+}
+
+// =====================================================
+// UNIT CONTROL
+// =====================================================
+async function controlUnit(unitId) {
+  await fetch('/api/control', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ unit_id: unitId }),
+  });
+}
+
+async function releaseUnit(unitId) {
+  await fetch('/api/release', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ unit_id: unitId }),
+  });
+}
+
+// =====================================================
+// EVENT LOG
+// =====================================================
+function renderEvents() {
+  if (!battleState) return;
+  const container = document.getElementById('events');
+  const events = battleState.events || [];
+  const reversed = [...events].reverse();
+  container.innerHTML = reversed.map(ev => {
+    const d = new Date(ev.timestamp * 1000);
+    const time = d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return `<div class="event-entry ${ev.event_type}"><span class="time">${time}</span> ${ev.description}</div>`;
+  }).join('');
+}
+
+// =====================================================
+// TRANSCRIPT RENDERING
+// =====================================================
+
+function formatTranscriptEntries(entries) {
+  return entries.map(entry => {
+    const d = new Date(entry.timestamp * 1000);
+    const time = d.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const cls = entry.speaker === 'bot' ? 'bot' : 'user';
+    const label = entry.speaker === 'bot' ? 'COLONEL' : 'SOLDIER';
+    return `<div class="transcript-entry ${cls}"><span class="speaker">${label}</span> <span class="time">${time}</span><br>${entry.text}</div>`;
+  }).join('');
+}
+
+// Live transcript: shown inside the call panel during an active call
+function renderLiveTranscript() {
+  const box = document.getElementById('transcript');
+  if (!box || !battleState?.transcripts || !callSoldierId) return;
+  const entries = battleState.transcripts[callSoldierId] || [];
+  box.innerHTML = formatTranscriptEntries(entries);
+  // Auto-scroll to bottom
+  box.scrollTop = box.scrollHeight;
+}
+
+// Historical transcript: shown below the call section for any selected unit
+function renderTranscriptHistory() {
+  const container = document.getElementById('transcript-history');
+  if (!container) return;
+
+  if (!selectedId || !battleState?.transcripts) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const entries = battleState.transcripts[selectedId] || [];
+
+  // Don't show history section if this unit is currently on a live call
+  // (the live transcript in the call panel covers it)
+  if (callState === 'connected' && callSoldierId === selectedId) {
+    container.innerHTML = '';
+    return;
+  }
+
+  if (entries.length === 0) {
+    container.innerHTML = `
+      <div class="transcript-history">
+        <h2>Call History</h2>
+        <div class="transcript-empty">No call transcripts for this unit</div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="transcript-history">
+      <h2>Call History (${entries.length} messages)</h2>
+      <div class="transcript-box">${formatTranscriptEntries(entries)}</div>
+    </div>
+  `;
+
+  // Scroll to bottom of history
+  const box = container.querySelector('.transcript-box');
+  if (box) box.scrollTop = box.scrollHeight;
+}
+</script>
+</body>
+</html>
