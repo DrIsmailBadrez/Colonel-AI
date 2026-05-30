@@ -26,6 +26,18 @@ load_dotenv(override=True)
 BASE_URL = os.environ["NEMOTRON_LLM_URL"].rstrip("/")
 MODEL = os.getenv("NEMOTRON_LLM_MODEL", "nvidia/nemotron-3-super")
 ENABLE_THINKING = os.getenv("NEMOTRON_ENABLE_THINKING", "false").lower() == "true"
+
+# --- Performance / sampling knobs (tunable via env) -------------------------
+# The dominant latency lever is NEMOTRON_ENABLE_THINKING: with thinking OFF the
+# model skips the long <think> trace and answers in ~1-3s (~90-100 tok/s) vs
+# >120s with it ON. The five-line output is ~80-130 tokens, so a small
+# MAX_TOKENS caps the worst case; low TEMPERATURE keeps tactical answers
+# deterministic. The endpoint is a vLLM fleet behind an ALB, so cold-node
+# routing still causes occasional timeouts — handled by retries below.
+MAX_TOKENS = int(os.getenv("NEMOTRON_MAX_TOKENS", "256"))
+TEMPERATURE = float(os.getenv("NEMOTRON_TEMPERATURE", "0.2"))
+TOP_P = float(os.getenv("NEMOTRON_TOP_P", "0.9"))
+
 OUT_PATH = os.getenv(
     "OUT_PATH",
     f"tactical_results_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}.txt",
@@ -42,8 +54,12 @@ def ask(prompt: str, retries: int = 3, timeout: int = 120) -> str:
     body = {
         "model": MODEL,
         "messages": build_messages(prompt),
-        "max_tokens": 800,
-        "temperature": 0.7,
+        "max_tokens": MAX_TOKENS,
+        "temperature": TEMPERATURE,
+        "top_p": TOP_P,
+        # Stop once the record's terminal field is done so we don't pay for
+        # trailing tokens after the parseable block.
+        "stop": ["===END===", "\n\n\n"],
         "chat_template_kwargs": {"enable_thinking": ENABLE_THINKING},
     }
     last_err = None
@@ -77,7 +93,8 @@ def main() -> None:
     # Append each run (don't overwrite) so progress is tracked across runs.
     stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
     header = (
-        f"\n##### RUN {stamp} | model={MODEL} | thinking={ENABLE_THINKING} #####\n\n"
+        f"\n##### RUN {stamp} | model={MODEL} | thinking={ENABLE_THINKING} | "
+        f"max_tokens={MAX_TOKENS} | temp={TEMPERATURE} | top_p={TOP_P} #####\n\n"
     )
     with open(OUT_PATH, "a") as f:
         f.write(header + "\n\n".join(records) + "\n")

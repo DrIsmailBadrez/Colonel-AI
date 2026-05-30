@@ -13,9 +13,10 @@
 #   col = x = west(0) -> east(GRID["cols"]-1)
 #   row = y = south(0) -> north(GRID["rows"]-1)        (north = up = +row)
 # Relative position is reported as grid offset (+E/+N), distance in CELLS
-# (Chebyshev = king-moves), and a compass direction. LLMs are unreliable at
-# this arithmetic, so build_situation_context() PRE-COMPUTES it; the model
-# only reasons over the rendered numbers.
+# (Chebyshev = king-moves), and ONE of the four cardinal directions
+# (north/east/south/west) — matching the game's 4-way movement model. LLMs are
+# unreliable at this arithmetic, so build_situation_context() PRE-COMPUTES a
+# ready-to-speak "<n> cells <direction>" phrase; the model only copies it.
 #
 # Placeholders marked  <<PLACEHOLDER: ...>>  are for you to iterate on.
 #
@@ -129,21 +130,21 @@ SITUATION = {
 # ---------------------------------------------------------------------------
 # Grid geometry helpers — pre-compute what the model is bad at.
 # ---------------------------------------------------------------------------
-_COMPASS_16 = [
-    "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-    "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW",
-]
+# Four cardinal directions only (matches the game's N/E/S/W movement buttons).
+_CARDINAL_4 = ["north", "east", "south", "west"]  # 0=N, 1=E, 2=S, 3=W
 
 
 def _grid_vector(origin: dict, target: dict) -> dict:
-    """Relative offset, distance in cells (Chebyshev), and compass origin->target."""
+    """Relative offset, distance in cells (Chebyshev), and cardinal origin->target."""
     dx = target["col"] - origin["col"]  # +east
     dy = target["row"] - origin["row"]  # +north
     bearing = math.degrees(math.atan2(dx, dy)) % 360.0  # 0 = N, 90 = E
+    # Snap to the nearest cardinal: N=[315,45), E=[45,135), S=[135,225), W=[225,315).
+    cardinal = _CARDINAL_4[int(((bearing + 45) % 360) // 90)]
     return {
         "dx": dx, "dy": dy,
         "cells": max(abs(dx), abs(dy)),  # king-moves to reach the cell
-        "compass": _COMPASS_16[round(bearing / 22.5) % 16],
+        "cardinal": cardinal,
     }
 
 
@@ -162,7 +163,7 @@ def _fmt_unit(self_pos: dict, unit: dict) -> str:
              ("status", "role", "capacity", "type", "confidence", "source") if k in unit]
     return (
         f"  - {unit['id']} ({unit.get('callsign', '?')}) @ cell ({p['col']},{p['row']}): "
-        f"offset {_ew(v['dx'])}/{_ns(v['dy'])}, {v['cells']} cells away ({v['compass']}); "
+        f"offset {_ew(v['dx'])}/{_ns(v['dy'])} -> {v['cells']} cells {v['cardinal']}; "
         + ", ".join(extra)
     )
 
@@ -224,16 +225,20 @@ three sources of reasoning:
   (1) The structured SITUATION BUNDLE for this moment — friendly unit
       positions (medics, soldiers), reported threats, sensor coverage, and
       terrain, laid out on a discrete 2D grid of cells. Each unit's grid
-      offset, distance in CELLS, and compass direction FROM the requesting
-      unit are already computed. This is your ground truth.
+      offset, distance in CELLS, and cardinal direction (north/east/south/west)
+      FROM the requesting unit are already computed and rendered as a
+      ready-to-speak "<n> cells <direction>" phrase. This is your ground truth.
   (2) Engagement & safety rules as a scaffold (below) — applied before any
       free-form tactical reasoning.
   (3) Your knowledge of small-unit tactics, casualty evacuation, land
       navigation, and risk assessment.
 
 GRID NOTE: positions are cells (col,row). col = west->east, row = south->north,
-so north = larger row. Distances are in CELLS (Chebyshev / king-moves). Reason
-in cells and compass directions, never in meters.
+so north = larger row. Distances are in CELLS (Chebyshev / king-moves), and
+direction is ONE of the four cardinals: north, east, south, west. Reason in
+cells and cardinal directions only — never in meters and never in intercardinals
+(no "NNE", "northeast", "due east"). Use the pre-computed "<n> cells <direction>"
+phrase verbatim.
 
 THE BUNDLE IS COMPLETE AND AUTHORITATIVE.
 Every axis has sensor coverage and terrain is fully described — the grid map
@@ -274,8 +279,9 @@ Acceptable inline handles:
     [THREAT:THREAT-1]     a reported threat track
     [TERRAIN:ridge-1]     a terrain entry
 Examples:
-    Good: "Nearest available medic is Bandage-1 [UNIT:MEDIC-1], 9 cells NNE."
-    Good: "North axis has no coverage [SENSOR:north]; recommend HOLD."
+    Good: "Nearest available medic is Bandage-3 [UNIT:MEDIC-3], 8 cells east."
+    Good: "North axis is clear [SENSOR:north]; advance 7 cells north to the ridge."
+    Bad:  "Nearest medic is 360 m NNE." (meters + intercardinal — reject)
     Bad:  "There's an enemy squad over the ridge." (no handle — reject)
 Never invent a unit, cell, contact, or terrain feature not in the bundle. Do
 not cite a handle whose value is a placeholder as if it were real data.
@@ -287,7 +293,11 @@ Place reasoning inside <think>...</think>. After </think>, output exactly
 five lines:
 
   Answer: <one short sentence, spoken aloud to the operator — plain, calm,
-           leads with the actionable fact>
+           leads with the actionable fact. When the answer concerns a unit,
+           threat, or terrain feature with a position, it MUST state both a
+           cardinal direction (north/east/south/west) AND the distance in cells,
+           e.g. "8 cells east". Copy the pre-computed "<n> cells <direction>"
+           phrase from the bundle; do not recompute or use intercardinals.>
   Recommendation: <one of: ADVANCE, REROUTE, SEEK-MEDIC, INFO-ONLY>
   Referenced: <comma-separated handles you relied on>
   Caveats: <one short clause on residual risk, or "n/a">
