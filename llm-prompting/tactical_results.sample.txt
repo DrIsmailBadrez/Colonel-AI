@@ -1,0 +1,112 @@
+===PROMPT===
+Where's the nearest friendly medic?
+===RESPONSE===
+{
+  Reasoning: The nearest medic is MEDIC-2 at 170 m NNW, but its status is busy. The next nearest available medic is MEDIC-1 at 361 m NNE. MEDIC-3 is farther at 504 m E. Therefore, the nearest available medic is MEDIC-1.
+}
+Answer: Nearest available medic is Bandage-1 [UNIT:MEDIC-1], 360 m NNE.
+Recommendation: SEEK-MEDIC
+Referenced: [UNIT:MEDIC-1], [UNIT:MEDIC-2], [UNIT:MEDIC-3]
+Caveats: MEDIC-2 is closer but busy; MEDIC-1 is the nearest available.
+Confidence: 0.95
+===END===
+
+===PROMPT===
+What's on the other side of this ridge?
+===RESPONSE===
+{
+  Reasoning: "The bundle provides no sensor coverage or threat data for the area beyond the ridge. Without explicit terrain or sensor entries indicating what lies on the far side, I cannot observe or confirm any features, threats, or friendly units there."
+}
+Answer: UNKNOWN what is on the other side of the ridge.
+Recommendation: UNKNOWN
+Referenced: none
+Caveats: No sensor coverage or terrain data for the far side of the ridge is provided in the bundle.
+Confidence: 0.30
+===END===
+
+===PROMPT===
+Am I clear to advance north?
+===RESPONSE===
+{The north axis sensor coverage is not provided in the bundle, so I cannot confirm observation of that direction. Without verified coverage, I must assume a gap exists per safety rules.}
+Answer: North axis coverage unknown; cannot confirm clear to advance.
+Recommendation: HOLD
+Referenced: [SENSOR:north]
+Caveats: No sensor coverage data for north axis provided in bundle.
+Confidence: 0.40
+===END===
+
+##### RUN 2026-05-30T19:34:20+00:00 | model=nvidia/nemotron-3-super | thinking=False #####
+
+===PROMPT===
+Where's the nearest friendly medic?
+===RESPONSE===
+
+
+Answer: Nearest available medic is Bandage-3 [UNIT:MEDIC-3], 8 cells east.
+Recommendation: INFO-ONLY
+Referenced: UNIT:MEDIC-3
+Caveats: n/a
+Confidence: 0.95
+===END===
+
+===PROMPT===
+What's on the other side of this ridge?
+===RESPONSE===
+{
+The bundle lists a ridgeline [TERRAIN:ridge-1] bearing N at 7 cells, but its far_side is a placeholder with no concrete data. No sensor coverage or recon is provided for the area beyond the ridge.
+}
+Answer: UNKNOWN what lies beyond the ridge.
+Recommendation: UNKNOWN
+Referenced: [TERRAIN:ridge-1]
+Caveats: No sensor or terrain data describes the far side of ridge-1.
+Confidence: 0.30
+===END===
+
+===PROMPT===
+Am I clear to advance north?
+===RESPONSE===
+{
+  Reasoning: The north axis has no sensor coverage ([SENSOR:drone-1=offline]). According to movement rules, absent coverage defaults to HOLD. No threats are reported within three grids north, but the lack of observation is the determining factor.
+}
+Answer: North axis has no coverage; recommend HOLD.
+Recommendation: HOLD
+Referenced: [SENSOR:drone-1=offline]
+Caveats: No sensor data to confirm axis is threat-free.
+Confidence: 0.95
+===END===
+
+##### RUN 2026-05-30T19:41:55+00:00 | model=nvidia/nemotron-3-super | thinking=False #####
+
+===PROMPT===
+Where's the nearest friendly medic?
+===RESPONSE===
+The nearest friendly medic is Bandage-1 [UNIT:MEDIC-1], located 9 cells NNE at cell (12,12) and currently available with capacity for evacuation.
+Recommendation: SEEK-MEDIC
+Referenced: [UNIT:MEDIC-1], [SELF]
+Caveats: n/a
+Confidence: 0.95
+===END===
+
+===PROMPT===
+What's on the other side of this ridge?
+===RESPONSE===
+{
+  Reasoning: "The far side of ridge-1 is described as open ground with one friendly soldier (Rifle-3) and no hostile contacts reported on last recon."
+}
+Answer: Open ground with one friendly soldier (Rifle-3) and no hostile contacts on the far side of ridge-1.
+Recommendation: INFO-ONLY
+Referenced: [TERRAIN:ridge-1], [SENSOR:drone-1]
+Caveats: n/a
+Confidence: 0.95
+===END===
+
+===PROMPT===
+Am I clear to advance north?
+===RESPONSE===
+{Reasoning: The north axis has sensor coverage [SENSOR:drone-1]; no threats are reported within three cells of the north axis. The nearest threat is none reported, so the axis is clear to advance.}
+Answer: Clear to advance north.
+Recommendation: ADVANCE
+Referenced: [SENSOR:drone-1]
+Caveats: Residual low risk due to no threat reports but possible undetected contacts.
+Confidence: 0.90
+===END===
