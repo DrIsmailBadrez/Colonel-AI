@@ -2,7 +2,9 @@
 
 **Real-time AI-powered battlefield command and control.**
 
-Colonel AI is an autonomous tactical intelligence system that gives every soldier on the battlefield a direct voice line to an AI commander with full situational awareness. Operators speak naturally -- "I'm taking fire from the east, send backup" -- and the system processes speech in real time, reasons over live battlefield state, and executes tactical decisions (dispatching units, repositioning assets, coordinating medical evacuation) in under 2 seconds end-to-end.
+Colonel AI is an autonomous tactical intelligence system -- the brain that sees, controls, and coordinates everything on the battlefield. Every soldier, every tank, every drone, every armored vehicle, every medical unit -- Colonel AI tracks them all in real time and makes command decisions across the entire force simultaneously.
+
+Any operator on the battlefield gets a direct voice line to this brain. Speak naturally -- "I'm taking fire from the east, send backup" -- and the system processes speech in real time, reasons over the full operational picture, and executes: dispatching reinforcements, rerouting armor, scrambling drones, coordinating medical evacuation, repositioning scouts. Any asset on the battlefield can be dispatched through Colonel AI in under 2 seconds, end-to-end.
 
 Built for contested environments where seconds matter and radio operators are overwhelmed.
 
@@ -18,16 +20,21 @@ A scout spots an enemy tank column moving through a valley. He reports it. The r
 
 A medic gets dispatched to a wounded soldier's last known position. But the squad moved 400 meters east under fire. The medic arrives at an empty field. The soldier bleeds out waiting for help that went to the wrong place.
 
+And underneath all of it, there's a fundamental constraint: a human radio operator can only handle one call at a time. While they're coordinating a medevac, the squad calling for reinforcement is on hold. While they're relaying a fire mission, the scout report goes unheard. Every soldier is competing for the same single channel to the same overwhelmed human. Ten emergencies happening simultaneously, and one person picking which one to answer first.
+
 Every one of these failures has the same root cause: information passes through a chain of overwhelmed humans, each one operating on data that's already stale by the time they see it. The right information exists somewhere in the system -- it just never reaches the right person fast enough to matter.
 
 ## The Solution
 
-Colonel AI collapses the entire command chain into a single voice call. Every soldier gets:
+Colonel AI collapses the entire command chain into a single voice call. One AI brain replaces the radio operator, the battalion TOC, and the decision loop. And unlike a human operator who can only take one call at a time -- every soldier on the battlefield can call the brain simultaneously. Ten soldiers calling in ten emergencies at once, and every single one gets an immediate response with real-time information and real-time help. No queue. No hold. No one waiting while someone else's call gets handled first.
 
-- **An AI commander who sees everything** -- every friendly position, every threat contact, every unit's health status, updated every second
+Every operator on the battlefield gets:
+
+- **A commander who sees everything** -- every soldier, tank, drone, vehicle, and medic on the field, with real-time position, health, heading, and threat proximity, updated continuously
+- **Total asset control** -- tanks, drones, armored vehicles, infantry squads, scout teams, medical units -- anything on the battlefield can be dispatched, repositioned, or redirected through a single voice command
 - **Natural voice interaction** -- no radio protocols, no codes, just speak
-- **Instant action** -- say "send me a medic" and the nearest medical unit is dispatched to your GPS coordinates within the same breath
-- **Autonomous unit coordination** -- units that aren't under direct human control make intelligent tactical decisions on their own: engaging threats, maintaining formation, retreating when wounded, seeking medical aid
+- **Instant action** -- say "send me armor" and the nearest tank is rerouted to your position. Say "I need a medic" and the closest medical unit is dispatched to your GPS coordinates. Say "drone recon east" and a UAV is redirected. All within the same breath.
+- **Autonomous unit coordination** -- because the AI sees every position, hears every call, and processes every threat in real time, every unit not under direct human control receives intelligent tactical decisions: tanks push aggressively toward threats, infantry engages when they have force advantage, scouts hold at recon distance, medics triage and heal, wounded units auto-evacuate to safety
 
 ---
 
