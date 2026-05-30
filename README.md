@@ -1,452 +1,264 @@
-# Colonel AI -- Battlefield Operations Center
+# Colonel AI
 
-A real-time tactical battlefield simulation with an AI voice commander. Soldiers on the field call in via WebRTC to receive situational awareness, request medics, report contacts, and get tactical guidance -- all powered by NVIDIA's Nemotron LLM with live battlefield state grounding.
+**Real-time AI-powered battlefield command and control.**
 
-```
-     ADVERSARY SAFE ZONE (top-right)
-     +---------+
-     | ENEMY-1 |  <-- adversaries advance toward friendly HQ
-     | ENEMY-2 |
-     +---------+
-                  \
-                   \  <-- combat range: 2 cells
-                    \
-        [SOLDIER-1] <--> engagement
-        [COMMANDER-1]
-        [MEDCAR-1] <-- auto-seeks wounded
+Colonel AI is an autonomous tactical intelligence system that gives every soldier on the battlefield a direct voice line to an AI commander with full situational awareness. Operators speak naturally -- "I'm taking fire from the east, send backup" -- and the system processes speech in real time, reasons over live battlefield state, and executes tactical decisions (dispatching units, repositioning assets, coordinating medical evacuation) in under 2 seconds end-to-end.
 
-     +---------+
-     | SAFE    |  <-- wounded retreat here, passive healing
-     | ZONE    |
-     +---------+
-     FRIENDLY SAFE ZONE (bottom-left)
-```
+Built for contested environments where seconds matter and radio operators are overwhelmed.
 
 ---
 
-## What It Does
+## The Problem
 
-**Two systems working together:**
+Modern battlefield communications are a bottleneck. A wounded soldier calling for a medic has to reach a human radio operator, who relays to a human commander, who makes a decision, who relays back down the chain. That loop takes minutes. In those minutes, soldiers die.
 
-1. **Battlefield Simulation** -- A 20x20 grid where friendly and adversary units move, fight, heal, and die in real time. Friendly units have autonomous AI that makes tactical decisions, but the player can take manual control of any unit at any time.
+Meanwhile, no single human can maintain real-time awareness of every unit's position, health, heading, and threat proximity across an entire operational area. Commanders make decisions on stale information. Units get dispatched to the wrong location. Medics arrive too late.
 
-2. **Voice AI Commander** -- Soldiers on the field call the Colonel via WebRTC. The Colonel sees the full battlefield, answers questions ("where's the nearest threat?"), dispatches reinforcements ("send me a medic"), processes reports ("contact at grid 15, 8"), and gives terse tactical guidance -- all in one sentence or less.
+## The Solution
 
----
+Colonel AI collapses the entire command chain into a single voice call. Every soldier gets:
 
-## Quick Start
-
-### Prerequisites
-
-- Python 3.11+
-- [uv](https://docs.astral.sh/uv/) package manager
-
-### 1. Environment Setup
-
-```bash
-cp .env.example .env
-# Edit .env with your API keys (see Environment Variables below)
-```
-
-### 2. Start the Simulation Server
-
-```bash
-cd simulation
-uv run uvicorn simulation.app:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### 3. Start the Voice Bot
-
-```bash
-cd server
-uv run bot.py
-```
-
-### 4. Open the UI
-
-```
-http://localhost:8000
-```
+- **An AI commander who sees everything** -- every friendly position, every threat contact, every unit's health status, updated every second
+- **Natural voice interaction** -- no radio protocols, no codes, just speak
+- **Instant action** -- say "send me a medic" and the nearest medical unit is dispatched to your GPS coordinates within the same breath
+- **Autonomous unit coordination** -- units that aren't under direct human control make intelligent tactical decisions on their own: engaging threats, maintaining formation, retreating when wounded, seeking medical aid
 
 ---
 
-## Environment Variables
+## How It Works
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `STATE_SERVER_URL` | `http://localhost:8000` | Simulation server URL |
-| `NVIDIA_ASR_URL` | -- | NVIDIA Parakeet WebSocket endpoint |
-| `NEMOTRON_LLM_URL` | -- | Nemotron API endpoint (OpenAI-compatible `/v1`) |
-| `NEMOTRON_LLM_MODEL` | `nvidia/nemotron-3-super` | LLM model name |
-| `NEMOTRON_LLM_API_KEY` | `EMPTY` | LLM API key |
-| `NEMOTRON_ENABLE_THINKING` | `false` | Extended reasoning mode |
-| `GRADIUM_API_KEY` | -- | Gradium TTS API key |
-| `GRADIUM_VOICE_ID` | `_6Aslh2DxfmnRLmP` | TTS voice selection |
-| `TWILIO_ACCOUNT_SID` | -- | Optional: Twilio telephony |
-| `TWILIO_AUTH_TOKEN` | -- | Optional: Twilio auth |
-| `ENV` | `local` | `local` or cloud deployment |
+### Voice Command Pipeline
 
----
-
-## Simulation Mechanics
-
-### Grid and Units
-
-The battlefield is a **20x20 grid**. Each unit occupies one cell. No two units can share a cell.
-
-**Factions:**
-- **Friendly** (blue) -- player's team, autonomous AI with manual override
-- **Adversary** (red) -- enemy forces, advance toward friendly HQ
-
-**Roles:**
-
-| Role | Shape | Combat | Special Behavior |
-|------|-------|--------|-----------------|
-| `soldier` | Circle | 3 dmg/tick | Engages if not outnumbered |
-| `tank` | Square | 8 dmg/tick | Always pushes toward nearest enemy |
-| `commander` | Circle | 3 dmg/tick | Stays near centroid of friendly forces |
-| `scout` | Circle | -- | Advances but holds at distance 3 from enemies |
-| `medical_car` | Square | -- | Auto-seeks any friendly under 100% HP, heals to full |
-| `doctor` | Circle | -- | Same as medical_car |
-| `car` | Square | -- | Holds position |
-
-**Unit States:**
-- `active` -- operational, full AI behavior
-- `wounded` -- health below 50%, auto-retreats to safe zone (unless player-controlled)
-- `destroyed` -- health reached 0, removed from simulation
-- `unknown` -- unverified contact
-
-### Combat
-
-- **Range:** Chebyshev distance of 2 cells (includes diagonals)
-- **Damage per tick:** Soldiers/commanders deal 3 HP, tanks deal 8 HP
-- **Stacking:** Multiple attackers stack damage -- surrounded units die fast
-- **Orientation:** Attackers turn to face their nearest target during combat (the white heading line points at the enemy)
-
-### Health and Healing
-
-Every unit has 100 HP. Three sources of healing:
-
-| Source | Rate | Range | Condition |
-|--------|------|-------|-----------|
-| Medic (medical_car/doctor) | 15 HP/tick | Adjacent (1 cell) | Heals any friendly under 100% HP |
-| Friendly safe zone | 10 HP/tick | Inside zone | Passive, automatic |
-| Adversary safe zone | 10 HP/tick | Inside zone | For adversary units only |
-
-- **Wounded** at < 50 HP, back to **active** at >= 50 HP
-- **Destroyed** at 0 HP -- permanent, no revival
-- Medics heal to 100%, not just to active status -- they stay with a patient until fully healed, then seek the next one
-- Medics prioritize their own survival: if wounded, they retreat to the safe zone before healing others
-
-### Safe Zones
-
-Two faction-exclusive zones where units heal passively and enemies cannot enter:
-
-| Zone | Center | Radius | Grid Area |
-|------|--------|--------|-----------|
-| Friendly | (2, 17) | 2 cells | Bottom-left corner |
-| Adversary | (17, 2) | 2 cells | Top-right corner |
-
-- Friendly units **cannot** enter the adversary safe zone
-- Adversary units **cannot** enter the friendly safe zone
-- Movement into an enemy safe zone is silently blocked
-
-### Autonomous AI
-
-All friendly units act autonomously by default. Each role has distinct behavior:
-
-**Soldiers** -- Check local force balance within 4 cells. If friendlies >= enemies, advance toward nearest enemy (up to 6 cells detection range). If outnumbered, hold position.
-
-**Tanks** -- Aggressive. Always advance toward the nearest enemy regardless of numbers.
-
-**Commanders** -- Calculate the centroid of all friendly combat units. If more than 2 cells away from the group center, reposition. Provides cohesion.
-
-**Scouts** -- Move toward enemies but stop at distance 3 (stay outside combat range 2). Recon without engaging.
-
-**Medics** -- Seek the nearest friendly with health < 100. Move toward them, heal on adjacency. If wounded, retreat to safe zone first (survival priority).
-
-**Adversary AI** -- All enemy units advance toward friendly HQ at (3, 10). 80% optimal pathing, 20% random perturbation for unpredictability.
-
-### Manual Control
-
-Click a friendly unit, then click **Take Control** to pause its AI. While controlled:
-
-- The unit stops all autonomous movement
-- NSEW movement buttons appear in the panel
-- Wounded units stay where you put them (no forced retreat)
-- Dispatch still works (set destinations for other units)
-
-Click **Release to AI** to resume autonomous behavior.
-
-A yellow **CTRL** badge appears above controlled units on the canvas.
-
-### Dispatch and Escort
-
-Dispatch sends a friendly unit to a grid cell. Click **Set Destination**, then click the target cell.
-
-**Escort Mode:** If a dispatched unit arrives near a player-controlled unit, it enters escort mode -- it follows the controlled unit in real time, staying adjacent and performing its role (medics heal, soldiers fight alongside). Escort ends when the dispatch is cancelled.
-
-### Simulation Tick Structure
-
-Every 1 second, the engine runs these phases under a single async lock:
+A soldier initiates a call from the field. Audio flows through a low-latency pipeline:
 
 ```
-Phase 1: Movement
-  |-- Player-controlled units: skip (manual only)
-  |-- Wounded retreat: fall back to safe zone
-  |-- Adversary AI: advance toward HQ
-  |-- Dispatched units: pathfind to destination (+ escort follow)
-  |-- Medical AI: seek nearest hurt friendly
-  |-- Friendly combat AI: role-based engagement
-
-Phase 2: Combat damage
-  |-- All combat units damage enemies in range, orient toward target
-
-Phase 3: Medic healing
-  |-- Adjacent medics heal friendly units (15 HP/tick)
-
-Phase 4: Safe zone passive healing
-  |-- Units inside own safe zone heal (10 HP/tick)
-
-Broadcast: push snapshot to all WebSocket subscribers
+Soldier's Voice
+    |
+    v
+WebRTC Transport (peer-to-peer, encrypted)
+    |
+    v
+NVIDIA Parakeet ASR (real-time speech-to-text, 16kHz streaming)
+    |
+    v
+Silero VAD (voice activity detection -- knows when to listen vs. process)
+    |
+    v
+NVIDIA Nemotron LLM (tactical reasoning + tool execution)
+    |   \
+    |    +---> Tool Calls: dispatch_unit, report_contact, move_unit, ...
+    |    +---> Mutates live battlefield state via REST API
+    |
+    v
+Gradium TTS (text-to-speech synthesis)
+    |
+    v
+WebRTC Transport --> Soldier's Earpiece
 ```
 
----
+**End-to-end latency: under 2 seconds from speech to action.**
 
-## Voice AI System
+The LLM's system prompt is rebuilt every second with a full spatial context dump: the caller's position, every friendly unit with pre-computed distance and cardinal direction from the caller, every known threat with range and bearing, and the last 50 battlefield events. The AI reasons over real positions, not approximations.
 
-### How a Call Works
+### Autonomous Battlefield Engine
 
-1. Player clicks a friendly unit, clicks **Call as [Callsign]**
-2. Browser negotiates WebRTC audio with the Pipecat bot (port 7860)
-3. Soldier speaks -- audio streams to NVIDIA Parakeet STT
-4. Transcribed text goes to Nemotron LLM with full battlefield context
-5. LLM responds (and optionally calls tools like `dispatch_unit`)
-6. Response streams through Gradium TTS back to the browser
-7. Transcript is logged and displayed in the UI
-
-### Speech Pipeline
+Between voice commands, units operate autonomously. A real-time engine runs continuous tactical cycles:
 
 ```
-Browser Mic --> WebRTC --> Parakeet STT --> User Aggregator (VAD)
-  --> Nemotron LLM (+ tool calls) --> Gradium TTS --> WebRTC --> Browser Speaker
++------ Tactical Cycle (1-second intervals) ------+
+|                                                   |
+|  1. Autonomous Movement                          |
+|     - Infantry: engage if force advantage,       |
+|       hold if outnumbered                        |
+|     - Armor: aggressive push toward threats      |
+|     - Scouts: advance to recon distance,         |
+|       hold outside engagement range              |
+|     - Commanders: maintain formation cohesion     |
+|       (centroid tracking)                        |
+|     - Medical: seek nearest casualty, heal to    |
+|       100%, move to next                         |
+|     - Wounded: auto-retreat to safe zone         |
+|                                                   |
+|  2. Combat Resolution                            |
+|     - All combat units engage hostiles in range  |
+|     - Damage stacking from multiple attackers    |
+|     - Weapon orientation toward primary target   |
+|                                                   |
+|  3. Medical & Recovery                           |
+|     - Field medics heal adjacent casualties      |
+|     - Safe zone passive recovery                 |
+|     - Triage: medics prioritize own survival,    |
+|       then seek worst-off friendly               |
+|                                                   |
+|  4. State Broadcast                              |
+|     - Full battlefield snapshot pushed to all     |
+|       connected clients via WebSocket            |
++---------------------------------------------------+
 ```
 
-| Component | Technology | Role |
-|-----------|-----------|------|
-| Transport | SmallWebRTC / WebSocket | Bidirectional audio |
-| STT | NVIDIA Parakeet | 16kHz PCM speech-to-text |
-| VAD | Silero | Voice activity detection |
-| LLM | NVIDIA Nemotron-3-Super | Tactical reasoning + tool calling |
-| TTS | Gradium | Voice synthesis |
-| Transcript | Custom Pipecat processor | Captures both sides of conversation |
+### Human Override
 
-### LLM Grounding
+Any unit can be pulled from autonomous control into direct human command at any time. One click: the AI stops, you drive. Release control and the unit seamlessly resumes autonomous operations. No mode switches, no reconfiguration.
 
-The Colonel's system prompt is rebuilt every second with live state:
-
-- **Caller identity:** Which soldier is calling, their position, status, health
-- **Friendly units:** Each unit with pre-computed grid offset from the caller (e.g., "Doc-1 @ (1,10): 2 cells west, status=active")
-- **Threats:** Each adversary with distance and direction from the caller
-- **Recent events:** Last battlefield events for situational awareness
-
-The Colonel is instructed to:
-- Respond in **one sentence maximum**
-- Always cite unit handles (`[UNIT:SOLDIER-1]`, `[THREAT:ENEMY-2]`)
-- Give **one actionable fact**, never list options
-- Use tool calls for any action (dispatch, move, report)
-
-### LLM Tool Functions
-
-| Tool | What It Does |
-|------|-------------|
-| `report_contact` | Create a new adversary unit on the grid |
-| `query_area` | Get all units within radius of a position |
-| `move_unit` | Move a specific unit one cell in a direction |
-| `dispatch_unit` | Send nearest unit of a role to a location or unit |
-| `report_status` | Update a unit's status (wounded, destroyed, etc.) |
-| `end_call` | Hang up the call |
+Dispatched units that arrive near a human-controlled unit automatically enter **escort mode** -- they follow the operator, performing their role (medics heal, soldiers provide fire support) until dismissed.
 
 ---
 
-## Web UI
-
-### Canvas (Left)
-
-- 20x20 grid with coordinate labels
-- Units rendered as circles (infantry) or squares (vehicles)
-- Blue = friendly, red = adversary, gray = destroyed
-- Health bars above each unit (green > 50%, orange 25-50%, red < 25%)
-- White heading line shows movement/attack direction
-- Yellow selection ring on clicked unit
-- Blue dashed line + diamond for dispatch paths
-- Safe zones rendered as tinted regions with dashed borders
-- **CTRL** badge on player-controlled units
-- Green pulsing ring on unit during active voice call
-
-### Panel (Right)
-
-- **Unit Info:** ID, callsign, role, faction, status, health %, position, heading, control mode
-- **Control Toggle:** Take Control / Release to AI
-- **Movement:** NSEW buttons (only when controlled)
-- **Dispatch:** Set Destination / Cancel Dispatch
-- **Radio Call:** Call as [Callsign] / End Call
-- **Live Transcript:** During active call
-- **Call History:** Past transcripts for selected unit
-
-### Event Log (Bottom)
-
-Color-coded real-time log of all battlefield events:
-- Red: contact reports
-- Yellow: status changes (wounded, destroyed, healed)
-- Gray: movement
-- Purple: dispatch orders
-- Blue: reports
-
----
-
-## API Reference
-
-### REST Endpoints (port 8000)
-
-**State**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/state` | Full battlefield snapshot |
-| GET | `/api/item/{id}` | Single unit details |
-| POST | `/api/query` | Units within radius of a position |
-
-**Commands**
-
-| Method | Path | Body | Description |
-|--------|------|------|-------------|
-| POST | `/api/move` | `{id, direction}` | Move unit one cell (N/S/E/W) |
-| POST | `/api/dispatch` | `{unit_id or role, target_x, target_y}` | Dispatch unit to location |
-| POST | `/api/cancel_dispatch` | `{unit_id}` | Cancel dispatch order |
-| POST | `/api/control` | `{unit_id}` | Take manual control |
-| POST | `/api/release` | `{unit_id}` | Release to AI |
-| POST | `/api/report` | `{grid_x, grid_y, description, role}` | Report enemy contact |
-| POST | `/api/status` | `{id, status, detail}` | Update unit status |
-
-**Transcripts**
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/transcript` | Add transcript entry |
-| GET | `/api/transcript/{soldier_id}` | Get call history |
-
-### WebSocket
-
-| Path | Description |
-|------|-------------|
-| `/ws` | Full state broadcast on every mutation + 1-second heartbeat |
-
-### Bot Endpoints (port 7860)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/start` | Initiate WebRTC session |
-| POST | `/sessions/{id}/api/offer` | WebRTC SDP offer/answer exchange |
-| PATCH | `/api/offer` | Send ICE candidates |
-
----
-
-## Architecture
+## System Architecture
 
 ```
 +-----------------------------------------------------------+
-|                    Browser (Web UI)                         |
+|              Operator Interface (Browser)                   |
 |                                                             |
-|  Canvas <-- WebSocket (/ws) <-- State Server               |
-|  Panel     real-time updates    (port 8000)                |
-|  Controls                                                   |
+|  Tactical Display <-- WebSocket <-- C2 State Server        |
+|  Unit Control                        (port 8000)           |
 |                                                             |
-|  Microphone --> WebRTC --> Voice Bot (port 7860)           |
-|  Speaker   <-- WebRTC <-- Voice Bot                        |
+|  Voice Input --> WebRTC --> AI Voice Agent (port 7860)     |
+|  Voice Output <-- WebRTC <--                               |
 +-------------------+-------------------+--------------------+
                     |                   |
      +--------------v--------+  +------v-----------------+
-     |  Simulation Server    |  |   Pipecat Voice Bot    |
-     |  (FastAPI, :8000)     |  |   (:7860)              |
+     |  C2 State Server      |  |   AI Voice Agent       |
+     |  (FastAPI)             |  |   (Pipecat)            |
      |                       |  |                        |
-     |  BattlefieldState     |<-+  Tool calls:           |
-     |  +-- items (units)    |  |  POST /api/dispatch    |
-     |  +-- events (log)     |  |  POST /api/report      |
-     |  +-- transcripts      |  |  POST /api/move        |
-     |                       |  |  POST /api/status      |
-     |  Simulation Engine    |  |                        |
-     |  +-- movement AI      |  |  Pipeline:             |
-     |  +-- combat phase     |  |  STT -> LLM -> TTS     |
-     |  +-- healing phase    |  |                        |
-     |  +-- safe zone heal   |  |  State refresh: 1/s    |
+     |  Battlefield State    |<-+  LLM Tool Execution:   |
+     |  +-- unit registry    |  |  dispatch_unit()       |
+     |  +-- event stream     |  |  report_contact()      |
+     |  +-- comms transcripts|  |  move_unit()           |
+     |                       |  |  report_status()       |
+     |  Tactical Engine      |  |  query_area()          |
+     |  +-- autonomous AI    |  |                        |
+     |  +-- combat resolver  |  |  Voice Pipeline:       |
+     |  +-- medical system   |  |  ASR -> LLM -> TTS     |
+     |  +-- zone enforcement |  |                        |
      +-----------------------+  +------+-----------------+
                                        |
                     +------------------+------------------+
                     |                  |                  |
            +--------v------+ +--------v-----+ +---------v------+
            | NVIDIA Parakeet| |  Nemotron    | |  Gradium TTS   |
-           | (STT)          | |  (LLM)       | |                |
-           | WebSocket ASR  | |  HTTP /v1    | |  HTTPS API     |
-           | 16kHz PCM      | |  streaming   | |  voice synth   |
+           | Speech-to-Text | |  LLM         | |  Text-to-Speech|
+           | (streaming ASR)| |  (reasoning  | |  (voice synth) |
+           |                | |   + tools)   | |                |
            +----------------+ +--------------+ +----------------+
-```
-
-### File Structure
-
-```
-Colonel-AI/
-+-- simulation/              # Battlefield simulation server
-|   +-- app.py               # FastAPI server, REST + WebSocket endpoints
-|   +-- state.py             # BattlefieldState: async state, locks, broadcast
-|   +-- engine.py            # Tick loop: movement, combat, healing, AI
-|   +-- models.py            # WarItem + Event dataclasses
-|   +-- seed.py              # Initial unit placement
-|   +-- static/
-|       +-- index.html       # Full web UI (canvas, panels, WebRTC client)
-|
-+-- server/                  # Voice AI bot
-|   +-- bot.py               # Pipecat pipeline, WebRTC transport, state refresh
-|   +-- tools.py             # LLM tool functions (dispatch, report, move, etc.)
-|   +-- prompts.py           # System prompt template + spatial context builder
-|   +-- nemotron_llm.py      # Custom Nemotron LLM service (TTFB metrics)
-|   +-- nvidia_stt.py        # NVIDIA Parakeet WebSocket STT service
-|   +-- transcript_logger.py # Captures user + bot speech for transcript storage
-|   +-- pyproject.toml       # Python dependencies
-|   +-- pcc-deploy.toml      # Pipecat Cloud deployment config
-|
-+-- .env.example             # Environment variable template
-+-- .gitignore
 ```
 
 ---
 
-## Game Constants
+## Tactical AI Behaviors
 
-### Combat
+### Force-Level Decision Making
 
-| Constant | Value |
-|----------|-------|
-| Soldier/Commander damage | 3 HP/tick |
-| Tank damage | 8 HP/tick |
-| Combat range | 2 cells (Chebyshev) |
+Every friendly unit runs a role-specific tactical algorithm each cycle:
 
-### Healing
+| Role | Doctrine | Decision Logic |
+|------|----------|---------------|
+| **Infantry** | Engage with advantage | Scans 6-cell radius for threats. Counts friendly vs. hostile force ratio within 4 cells. Engages only when at numerical parity or advantage. Holds position when outnumbered. |
+| **Armor** | Aggressive interdiction | Locks nearest hostile regardless of force balance. Continuously advances to engage. High damage output compensates for risk. |
+| **Commander** | Formation cohesion | Computes centroid of all friendly combat units. Repositions if drift exceeds 2 cells. Keeps the force together. |
+| **Scout** | Stand-off reconnaissance | Advances toward nearest threat but maintains 3-cell buffer (outside combat range). Provides early warning without engaging. |
+| **Medical** | Triage and recover | Seeks nearest friendly with any HP deficit. Heals to 100% before moving to next casualty. If wounded, retreats to safe zone first -- survival over duty. |
 
-| Constant | Value |
-|----------|-------|
-| Medic healing | 15 HP/tick |
-| Medic range | 1 cell (adjacent) |
-| Safe zone healing | 10 HP/tick |
+### Wounded Auto-Evacuation
 
-### AI Thresholds
+When a unit drops below 50% health, it automatically disengages and retreats toward its faction's safe zone. This behavior is overridden when a human operator takes direct control -- allowing deliberate risk-taking when tactically necessary.
 
-| Constant | Value | Meaning |
-|----------|-------|---------|
-| `AI_ENGAGE_RANGE` | 6 | Soldiers detect enemies within this |
-| `AI_LOCAL_RANGE` | 4 | Radius for counting force balance |
-| `AI_SCOUT_KEEP` | 3 | Scouts hold at this distance |
-| `AI_CMD_DRIFT` | 2 | Commanders reposition beyond this |
+### Safe Zone Enforcement
+
+Each faction maintains a rear-area safe zone where units recover passively and enemy forces cannot penetrate. The boundary is enforced at the movement level -- hostile units are physically blocked from entering, creating defensible fallback positions.
+
+---
+
+## LLM Tactical Grounding
+
+The AI commander doesn't hallucinate positions or guess at distances. Every second, the system prompt is rebuilt with:
+
+```
+SELF: You are speaking with Rifle-1 (SOLDIER-1) at grid (3,10), status=active, health=85%
+
+FRIENDLY FORCES:
+- [UNIT:COMMANDER-1] Eagle-6 @ (2,10): 1 cell west, status=active, health=100%
+- [UNIT:MEDCAR-1] Doc-1 @ (1,10): 2 cells west, status=active, health=100%
+- [UNIT:SOLDIER-2] Rifle-2 @ (5,8): 3 cells east-northeast, status=wounded, health=35%
+
+THREATS:
+- [THREAT:ENEMY-1] Contact-1 @ (8,7): 6 cells east-northeast, soldier, advancing west
+- [THREAT:ENEMY-2] Contact-2 @ (12,12): 9 cells east-south, tank, advancing west
+
+RECENT EVENTS:
+- 14:32:07 Rifle-2 wounded (35% HP)
+- 14:32:05 Contact-1 moved W to [8, 7]
+```
+
+When a soldier says "where's the nearest threat?", the AI answers with exact grid coordinates and distance. When they say "send a medic to Rifle-2", the AI dispatches the nearest medical unit to Rifle-2's actual position -- not an approximation.
+
+### Voice-Executable Actions
+
+| Command | What the AI Does |
+|---------|-----------------|
+| `report_contact` | Registers a new hostile on the battlefield at the reported grid position |
+| `dispatch_unit` | Finds the nearest available unit of the requested role and routes it to the target |
+| `move_unit` | Repositions a specific unit in a cardinal direction |
+| `report_status` | Updates a unit's operational status (wounded, destroyed, active) |
+| `query_area` | Returns all units within a specified radius of any grid position |
+| `end_call` | Terminates the voice session |
+
+Role aliasing handles natural language: "send me a medic" resolves to the nearest `medical_car` or `doctor`. "I need backup" dispatches the nearest `soldier`. "Send armor" finds the nearest `tank`.
+
+---
+
+## Operational Display
+
+### Tactical Map
+
+Real-time canvas rendering of the full battlespace:
+
+- **Blue force tracking** -- all friendly units with role-specific icons, health bars, heading indicators
+- **Red force tracking** -- all known hostile contacts with movement vectors
+- **Engagement visualization** -- weapon orientation lines show who's firing at whom
+- **Dispatch routing** -- dashed pathlines show unit movement orders
+- **Safe zone overlays** -- faction-exclusive recovery areas highlighted
+- **Casualty indicators** -- health bars color-shift from green to red as units take damage
+- **Control state** -- CTRL badge on human-controlled units
+
+### Command Panel
+
+- Full unit telemetry: ID, callsign, role, faction, status, health, position, heading
+- One-click control transfer (autonomous <-> manual)
+- Cardinal movement controls for direct maneuvering
+- Dispatch targeting with click-to-designate
+- Live voice transcript during active calls
+- Call history per unit
+
+### Event Stream
+
+Chronological feed of all battlefield events -- contact reports, status changes, dispatch orders, unit movements -- color-coded by type for rapid scanning.
+
+---
+
+## API Surface
+
+### Command & Control API
+
+| Method | Endpoint | Function |
+|--------|----------|----------|
+| GET | `/api/state` | Full battlefield state snapshot |
+| POST | `/api/move` | Reposition a unit |
+| POST | `/api/dispatch` | Route a unit to coordinates or another unit |
+| POST | `/api/control` | Transfer unit to human control |
+| POST | `/api/release` | Return unit to autonomous AI |
+| POST | `/api/report` | Register a new threat contact |
+| POST | `/api/status` | Update unit operational status |
+| POST | `/api/query` | Area scan for nearby units |
+| WS | `/ws` | Real-time state stream (full snapshot on every mutation) |
+
+### Voice Agent API
+
+| Method | Endpoint | Function |
+|--------|----------|----------|
+| POST | `/start` | Initiate secure voice session |
+| POST | `/sessions/{id}/api/offer` | WebRTC signaling (SDP exchange) |
+| PATCH | `/api/offer` | ICE candidate negotiation |
 
 ---
 
@@ -455,32 +267,30 @@ Colonel-AI/
 ### Local
 
 ```bash
-# Terminal 1
-uv run uvicorn simulation.app:app --host 0.0.0.0 --port 8000 --reload
+cp .env.example .env    # configure API keys
 
-# Terminal 2
+# Terminal 1: C2 State Server
+uv run uvicorn simulation.app:app --host 0.0.0.0 --port 8000
+
+# Terminal 2: AI Voice Agent
 cd server && uv run bot.py
 
-# Browser
-open http://localhost:8000
+# Access: http://localhost:8000
 ```
 
-### Pipecat Cloud
-
-The bot is deployable via Pipecat Cloud with the included `pcc-deploy.toml`:
+### Cloud (Pipecat Cloud)
 
 ```toml
+# pcc-deploy.toml
 agent_name = "colonel-ai"
 agent_profile = "agent-1x"
 
 [krisp_viva]
-audio_filter = "tel"    # noise suppression for telephony
+audio_filter = "tel"    # battlefield noise suppression
 
 [scaling]
-min_agents = 1
+min_agents = 1          # auto-scales with demand
 ```
-
-Cloud deployments automatically enable Krisp Viva audio filtering for cleaner speech input.
 
 ---
 
@@ -488,11 +298,54 @@ Cloud deployments automatically enable Krisp Viva audio filtering for cleaner sp
 
 | Layer | Technology |
 |-------|-----------|
-| Simulation server | Python, FastAPI, asyncio, uvicorn |
-| Voice bot framework | Pipecat |
-| Speech-to-text | NVIDIA Parakeet |
-| Language model | NVIDIA Nemotron-3-Super |
-| Text-to-speech | Gradium |
-| Voice transport | WebRTC (SmallWebRTC) |
-| Frontend | HTML5 Canvas, vanilla JavaScript, WebSocket |
-| Audio processing | Silero VAD, Krisp Viva (cloud) |
+| C2 State Server | Python, FastAPI, asyncio |
+| Tactical Engine | Custom async tick-based resolution engine |
+| Voice Agent Framework | Pipecat (WebRTC + pipeline orchestration) |
+| Speech Recognition | NVIDIA Parakeet (streaming WebSocket ASR) |
+| Tactical Reasoning | NVIDIA Nemotron-3-Super (LLM with tool calling) |
+| Voice Synthesis | Gradium TTS |
+| Transport | WebRTC (peer-to-peer, encrypted) |
+| Noise Suppression | Silero VAD + Krisp Viva |
+| Operational Display | HTML5 Canvas, WebSocket (real-time) |
+
+---
+
+## Environment Configuration
+
+| Variable | Purpose |
+|----------|---------|
+| `STATE_SERVER_URL` | C2 state server endpoint |
+| `NVIDIA_ASR_URL` | Parakeet speech recognition endpoint |
+| `NEMOTRON_LLM_URL` | Nemotron reasoning engine endpoint |
+| `NEMOTRON_LLM_MODEL` | Model identifier |
+| `NEMOTRON_LLM_API_KEY` | API authentication |
+| `NEMOTRON_ENABLE_THINKING` | Extended tactical reasoning mode |
+| `GRADIUM_API_KEY` | Voice synthesis authentication |
+| `GRADIUM_VOICE_ID` | Voice profile selection |
+| `TWILIO_ACCOUNT_SID` | Optional: telephony gateway |
+| `TWILIO_AUTH_TOKEN` | Optional: telephony auth |
+
+---
+
+## Project Structure
+
+```
+Colonel-AI/
++-- simulation/                # C2 State Server & Tactical Engine
+|   +-- app.py                 # FastAPI server, REST + WebSocket C2 API
+|   +-- state.py               # Battlefield state manager (async, lock-protected)
+|   +-- engine.py              # Tactical engine: autonomous AI, combat, medical, zones
+|   +-- models.py              # Unit and event data models
+|   +-- seed.py                # Initial force deployment
+|   +-- static/index.html      # Operational display (tactical map + command panel)
+|
++-- server/                    # AI Voice Agent
+|   +-- bot.py                 # Pipecat pipeline orchestration, WebRTC transport
+|   +-- tools.py               # LLM-callable tactical functions
+|   +-- prompts.py             # Spatial context builder + system instruction template
+|   +-- nemotron_llm.py        # Nemotron LLM integration (streaming + metrics)
+|   +-- nvidia_stt.py          # NVIDIA Parakeet ASR integration (WebSocket)
+|   +-- transcript_logger.py   # Voice transcript capture and storage
+|   +-- pyproject.toml         # Dependencies
+|   +-- pcc-deploy.toml        # Cloud deployment configuration
+```
