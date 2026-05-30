@@ -12,7 +12,13 @@ Built for contested environments where seconds matter and radio operators are ov
 
 Modern battlefield communications are a bottleneck. A wounded soldier calling for a medic has to reach a human radio operator, who relays to a human commander, who makes a decision, who relays back down the chain. That loop takes minutes. In those minutes, soldiers die.
 
-Meanwhile, no single human can maintain real-time awareness of every unit's position, health, heading, and threat proximity across an entire operational area. Commanders make decisions on stale information. Units get dispatched to the wrong location. Medics arrive too late.
+But it's not just medics. A squad is pinned down and needs reinforcement. The squad leader radios in -- but the radio operator is handling three other calls. The request reaches a commander who's looking at a map that was updated six minutes ago. He sends backup -- to the wrong location. The squad gets flanked. Two soldiers are dead before anyone realizes the mistake.
+
+A scout spots an enemy tank column moving through a valley. He reports it. The report sits in a queue behind a logistics request and a medevac call. By the time someone who can act on it finally sees it, the tanks have moved. The window to intercept them is gone.
+
+A medic gets dispatched to a wounded soldier's last known position. But the squad moved 400 meters east under fire. The medic arrives at an empty field. The soldier bleeds out waiting for help that went to the wrong place.
+
+Every one of these failures has the same root cause: information passes through a chain of overwhelmed humans, each one operating on data that's already stale by the time they see it. The right information exists somewhere in the system -- it just never reaches the right person fast enough to matter.
 
 ## The Solution
 
@@ -233,32 +239,6 @@ Real-time canvas rendering of the full battlespace:
 ### Event Stream
 
 Chronological feed of all battlefield events -- contact reports, status changes, dispatch orders, unit movements -- color-coded by type for rapid scanning.
-
----
-
-## API Surface
-
-### Command & Control API
-
-| Method | Endpoint | Function |
-|--------|----------|----------|
-| GET | `/api/state` | Full battlefield state snapshot |
-| POST | `/api/move` | Reposition a unit |
-| POST | `/api/dispatch` | Route a unit to coordinates or another unit |
-| POST | `/api/control` | Transfer unit to human control |
-| POST | `/api/release` | Return unit to autonomous AI |
-| POST | `/api/report` | Register a new threat contact |
-| POST | `/api/status` | Update unit operational status |
-| POST | `/api/query` | Area scan for nearby units |
-| WS | `/ws` | Real-time state stream (full snapshot on every mutation) |
-
-### Voice Agent API
-
-| Method | Endpoint | Function |
-|--------|----------|----------|
-| POST | `/start` | Initiate secure voice session |
-| POST | `/sessions/{id}/api/offer` | WebRTC signaling (SDP exchange) |
-| PATCH | `/api/offer` | ICE candidate negotiation |
 
 ---
 
