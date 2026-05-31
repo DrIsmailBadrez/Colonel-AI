@@ -70,6 +70,7 @@ Bugs / gotchas (transferable to anyone building loops):
 - **Self-eval reward-hacking risk** -- agent, critic, and optimizer in the same model family means a "win" can game the judge; a held-out set + regression gate are essential.
 
 
+### Q6. [App Link](https://0cb0-2601-642-4c01-5ace-5886-eb43-606e-2da5.ngrok-free.app) 
 ## The Problem
 
 Modern battlefield communications are a bottleneck. A wounded soldier calling for a medic has to reach a human radio operator, who relays to a human commander, who makes a decision, who relays back down the chain. That loop takes minutes. In those minutes, soldiers die.
