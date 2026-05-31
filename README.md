@@ -69,6 +69,7 @@ Bugs / gotchas (transferable to anyone building loops):
 - **Prompt-optimizer corruption** -- regenerating the full prompt via structured output mangled unicode (em-dash to literal `\u`) and silently dropped a phrase; additive diffs + integrity checks are needed.
 - **Self-eval reward-hacking risk** -- agent, critic, and optimizer in the same model family means a "win" can game the judge; a held-out set + regression gate are essential.
 
+For more information about the evaluation pipeline, check our README [here](https://github.com/DrIsmailBadrez/Colonel-AI/blob/main/evaluation/EVAL.md)
 
 ### Q6. [App Link](https://0cb0-2601-642-4c01-5ace-5886-eb43-606e-2da5.ngrok-free.app) 
 ## The Problem
