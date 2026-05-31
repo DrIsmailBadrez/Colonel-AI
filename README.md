@@ -1,5 +1,7 @@
 # Colonel AI
 
+## 1. What is this?
+
 **Real-time AI-powered battlefield command and control.**
 
 Colonel AI is an autonomous tactical intelligence system -- the brain that sees, controls, and coordinates everything on the battlefield. Every soldier, every tank, every drone, every armored vehicle, every medical unit -- Colonel AI tracks them all in real time and makes command decisions across the entire force simultaneously.
@@ -12,17 +14,11 @@ Built for contested environments where seconds matter and radio operators are ov
 
 ---
 
-## 1. Demo
+## 2. Demo
 
 [Demo video](https://www.loom.com/share/0ee88d3d01da4f8e912c4ae44751c5e0)
 
----
-
-## 2. Feedbacks
-
-*Hackathon submission answers.*
-
-### Q3. How we used Cekura, Nemotron models, and Pipecat
+## 3. How we used Cekura, Nemotron models, and Pipecat
 
 We used **Nemotron** (NVIDIA open-weights, served via a vLLM OpenAI-compatible endpoint) as the agent's reasoning LLM, and **Pipecat** for the end-to-end voice pipeline (STT -> Nemotron -> TTS). Nemotron was fast but under-followed instructions and gave terse, incomplete reasoning; Claude was accurate but over-reasoned and too slow for voice. So rather than swap models, we used **Claude as a critic to automatically improve Nemotron's system prompt** -- evaluation-driven, not vibes.
 
@@ -30,7 +26,7 @@ Goal of evaluation: turn "is the agent good?" into a measured, repeatable signal
 
 **Result: critical failures dropped from 6/10 to 2/10 in one measured round.**
 
-### Q4. What we built new during the hackathon
+## 4. What we built new during the hackathon
 
 Built from scratch during the hackathon:
 
@@ -39,7 +35,7 @@ Built from scratch during the hackathon:
 - **Nemotron integration** -- a client that captures Nemotron's reasoning trace, with retry/backoff and prompt structuring to exploit vLLM prefix caching.
 - **Auto-improvement loop** -- an automated eval harness (10-scenario suite, Claude-Opus critic, quantifiable rubric + critical-failure gate) that feeds failures back to Claude to rewrite Nemotron's prompt, with a regression gate so only measured gains are kept.
 
-### Q5. Feedback on the tools
+## 5. Feedback on the tools
 
 **Nemotron (nvidia/nemotron-3-super, via the vLLM OpenAI-compatible endpoint)**
 
@@ -71,7 +67,7 @@ Bugs / gotchas (transferable to anyone building loops):
 
 For more information about the evaluation pipeline, check our README [here](https://github.com/DrIsmailBadrez/Colonel-AI/blob/main/evaluation/EVAL.md)
 
-### Q6. [App Link](https://0cb0-2601-642-4c01-5ace-5886-eb43-606e-2da5.ngrok-free.app) 
+## 6. [App Link](https://0cb0-2601-642-4c01-5ace-5886-eb43-606e-2da5.ngrok-free.app) 
 ## The Problem
 
 Modern battlefield communications are a bottleneck. A wounded soldier calling for a medic has to reach a human radio operator, who relays to a human commander, who makes a decision, who relays back down the chain. That loop takes minutes. In those minutes, soldiers die.
