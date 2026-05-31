@@ -14,7 +14,7 @@ Built for contested environments where seconds matter and radio operators are ov
 
 ## 1. Demo
 
-<!-- TODO: demo video / screenshots -->
+[Demo video](https://www.loom.com/share/3bcad20fc59f4069896792be7746e2f1)
 
 ---
 
