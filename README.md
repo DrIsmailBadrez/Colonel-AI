@@ -10,6 +10,66 @@ Built for contested environments where seconds matter and radio operators are ov
 
 ---
 
+---
+
+## 1. Demo
+
+<!-- TODO: demo video / screenshots -->
+
+---
+
+## 2. Feedbacks
+
+*Hackathon submission answers.*
+
+### Q3. How we used Cekura, Nemotron models, and Pipecat
+
+We used **Nemotron** (NVIDIA open-weights, served via a vLLM OpenAI-compatible endpoint) as the agent's reasoning LLM, and **Pipecat** for the end-to-end voice pipeline (STT -> Nemotron -> TTS). Nemotron was fast but under-followed instructions and gave terse, incomplete reasoning; Claude was accurate but over-reasoned and too slow for voice. So rather than swap models, we used **Claude as a critic to automatically improve Nemotron's system prompt** -- evaluation-driven, not vibes.
+
+Goal of evaluation: turn "is the agent good?" into a measured, repeatable signal and feed it back into the agent. We defined **10 critical tactical scenarios** (CASEVAC dispatch, faction/safety, grounding, clear-to-advance...) each with ground truth, scored Nemotron with **Claude Opus as an LLM-judge critic** on a quantifiable rubric (correct tool call, grounding, safety, convention, brevity) with a **critical-failure gate**, then looped: failures -> Claude proposes a prompt patch -> re-score -> keep only if it measurably improves.
+
+**Result: critical failures dropped from 6/10 to 2/10 in one measured round.**
+
+### Q4. What we built new during the hackathon
+
+Built from scratch during the hackathon:
+
+- **Voice agent on Pipecat** -- end-to-end STT -> Nemotron (vLLM) -> TTS for a tactical command-and-control assistant.
+- **Real-time GUI** -- a live military map that visualizes the agent's tool calls (dispatch, contact reports, movement) as commands are issued.
+- **Nemotron integration** -- a client that captures Nemotron's reasoning trace, with retry/backoff and prompt structuring to exploit vLLM prefix caching.
+- **Auto-improvement loop** -- an automated eval harness (10-scenario suite, Claude-Opus critic, quantifiable rubric + critical-failure gate) that feeds failures back to Claude to rewrite Nemotron's prompt, with a regression gate so only measured gains are kept.
+
+### Q5. Feedback on the tools
+
+**Nemotron (nvidia/nemotron-3-super, via the vLLM OpenAI-compatible endpoint)**
+
+*Did well:* Fast and naturally terse -- a good fit for low-latency voice, often clean military-radio-style replies. When it followed the scaffold it reasoned correctly on tactical logic (e.g. "clear to advance north?" correctly returned REROUTE, named the hostile, and used our cells-plus-cardinal convention). The OpenAI-compatible vLLM surface made integration trivial.
+
+*Could be better:*
+
+- **Instruction-following** -- against a detailed system prompt it under-complied: skipping required tool calls, dropping citation handles, or not applying selection rules (e.g. nearest medic without checking `status==active`). Baseline 6/10 critical failures. Claude was accurate but over-reasoned and too slow for voice, so the sweet spot is Nemotron's speed with tighter steerability.
+- **Reasoning depth was inconsistent** -- short/incomplete chains on multi-constraint prompts.
+- **`reasoning_content` not surfaced** -- the hosted endpoint ran no reasoning parser, so with thinking enabled the chain-of-thought leaks into `content` rather than a separate field.
+- **Hosted-endpoint reliability (NVIDIA/AWS infra, not the weights)** -- frequent timeouts (6/10 scenarios timed out even at 45-120s) throttled our eval loop.
+
+**Cekura (building self-improvement loops)**
+
+We built the loop primarily with our own local critic harness (Claude-Opus judge), using Cekura's workflow and Pipecat-integration model as the blueprint -- so this is design feedback plus loop-building lessons.
+
+What would make closing the loop easier on Cekura:
+
+- A first-class optimizer -> re-run -> gate primitive (or an API to update agent config + diff scores across runs). Cekura gives a great eval signal; the "feed failures back, accept only measured gains" controller is left to the builder.
+- Machine-readable, per-criterion structured failures from the run API to drive an optimizer.
+- First-class tool-call assertions --> agent tool calls fire server-side.
+- A score-curve / cross-version regression view to directly serve the auto-improve theme.
+
+Bugs / gotchas (transferable to anyone building loops):
+
+- **LLM-judge score-scale drift** -- an unconstrained `overall_score` float drifted between runs (0-1 one run, ~0-5 the next) because JSON-schema structured outputs can't enforce numeric bounds; pin the scale in the prompt and clamp.
+- **Prompt-optimizer corruption** -- regenerating the full prompt via structured output mangled unicode (em-dash to literal `\u`) and silently dropped a phrase; additive diffs + integrity checks are needed.
+- **Self-eval reward-hacking risk** -- agent, critic, and optimizer in the same model family means a "win" can game the judge; a held-out set + regression gate are essential.
+
+
 ## The Problem
 
 Modern battlefield communications are a bottleneck. A wounded soldier calling for a medic has to reach a human radio operator, who relays to a human commander, who makes a decision, who relays back down the chain. That loop takes minutes. In those minutes, soldiers die.
