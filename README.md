@@ -10,9 +10,6 @@ Any operator on the battlefield gets a direct voice line to this brain. Speak na
 
 Built for contested environments where seconds matter and radio operators are overwhelmed.
 
----
-
----
 
 ## 2. Demo
 
