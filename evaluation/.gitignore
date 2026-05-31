@@ -1,0 +1,8 @@
+.env
+.venv/
+__pycache__/
+tactical_results_*.txt
+tactical_results.txt
+eval_report_*
+improvement_*
+prompt_versions_sim/
