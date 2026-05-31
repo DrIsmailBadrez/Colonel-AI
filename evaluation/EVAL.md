@@ -11,12 +11,8 @@ system prompt** — keeping only changes that *measurably* improve the score.
 
 <video src="evaluation_autoimprovements_rounds.mov" controls width="720">
   Your browser can't play this inline —
-  <a href="evaluation_autoimprovements_rounds.mov">download the demo video</a>.
+  <a href="https://github.com/DrIsmailBadrez/Colonel-AI/blob/main/evaluation/evaluation_autoimprovements_rounds.mov">download the demo video</a>.
 </video>
-
-_(GitHub may render the `.mov` as a download link rather than inline; convert to
-`.mp4`/H.264 if you want in-page playback.)_
-
 ---
 
 ## How the loop works
