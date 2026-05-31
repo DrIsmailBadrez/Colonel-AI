@@ -119,7 +119,7 @@ uv run evaluate.py          # Tier-1: score the agent once, write a report
 uv run improve.py           # one+ auto-improve rounds (IMPROVE_ITERS, BASELINE_FILE)
 ```
 
-## Caveats (honest footnotes)
+## Caveats
 
 1. **Hosted-endpoint flakiness** — the Nemotron endpoint timed out on several
    scenarios; suites are partial and means are noisy. Critical-failure count is
