@@ -60,8 +60,8 @@ async def report_contact(
 
     Args:
         description: What was spotted (e.g., "2 tanks", "infantry squad", "sniper").
-        grid_x: X coordinate on the 20x20 grid (0-19).
-        grid_y: Y coordinate on the 20x20 grid (0-19).
+        grid_x: X coordinate on the grid (0-29).
+        grid_y: Y coordinate on the grid (0-14).
         heading: Direction the contact is moving: N, S, E, W, or unknown.
         role: Type of unit: soldier, tank, car. Default soldier.
     """
@@ -100,8 +100,8 @@ async def query_area(
     situational update for an area.
 
     Args:
-        grid_x: Center X coordinate on the 20x20 grid (0-19).
-        grid_y: Center Y coordinate on the 20x20 grid (0-19).
+        grid_x: Center X coordinate on the grid (0-39).
+        grid_y: Center Y coordinate on the grid (0-29).
         radius: Search radius in grid cells (Manhattan distance). Default 3.
     """
     try:
@@ -202,8 +202,8 @@ async def dispatch_unit(
         target_id: ID of the unit to send help TO (e.g., the caller's ID).
                    If provided, target_x/target_y are ignored.
                    Default: empty string (use target_x/target_y instead).
-        target_x: X coordinate to dispatch to (0-19). Only used if target_id is empty.
-        target_y: Y coordinate to dispatch to (0-19). Only used if target_id is empty.
+        target_x: X coordinate to dispatch to (0-29). Only used if target_id is empty.
+        target_y: Y coordinate to dispatch to (0-14). Only used if target_id is empty.
     """
     body: dict = {"role": role}
 

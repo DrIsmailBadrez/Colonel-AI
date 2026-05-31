@@ -2,10 +2,12 @@
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -39,6 +41,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# CORS — needed when frontend and bot are on different origins (e.g., cloud deploy)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # --- Static files ---
 static_dir = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
@@ -50,6 +60,13 @@ async def index():
 
 
 # --- REST API ---
+
+
+@app.get("/api/config")
+async def get_config():
+    """Return client-side configuration (bot URL for WebRTC calls)."""
+    bot_url = os.getenv("BOT_URL", "http://localhost:7860")
+    return {"bot_url": bot_url}
 
 
 @app.get("/api/state")

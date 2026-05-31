@@ -6,10 +6,10 @@ Mirrors the architecture of the tactical situational-awareness reasoning prompt:
   (3) the model's own domain knowledge,
   plus citation discipline, grounding rules, and mandatory tool calling.
 
-SPATIAL MODEL: a discrete 20x20 2D grid of cells.
+SPATIAL MODEL: a discrete 30x15 2D grid of cells.
   Each unit sits in a cell addressed by (col, row), both integers.
-  col = x = west(0) -> east(19)
-  row = y = north(0) -> south(19)          (south = down = +row)
+  col = x = west(0) -> east(29)
+  row = y = north(0) -> south(14)          (south = down = +row)
   Relative position is reported as grid offset (+E/+S), distance in CELLS
   (Chebyshev = king-moves), and ONE of the four cardinal directions
   (north/east/south/west) — matching the game's 4-way movement model.
@@ -25,8 +25,8 @@ import math
 # Four cardinal directions only (matches the game's N/E/S/W movement buttons).
 _CARDINAL_4 = ["north", "east", "south", "west"]  # 0=N, 1=E, 2=S, 3=W
 
-GRID_COLS = 20
-GRID_ROWS = 20
+GRID_COLS = 30
+GRID_ROWS = 15
 
 
 def _grid_vector(origin: list[int], target: list[int]) -> dict:
@@ -93,7 +93,7 @@ unit, delivered over voice radio. Your goal is a decision-useful answer that
 integrates three sources of reasoning:
 
   (1) The structured SITUATION BUNDLE — friendly unit positions (medics,
-      soldiers), reported threats, laid out on a discrete 20x20 2D grid of
+      soldiers), reported threats, laid out on a discrete 30x15 2D grid of
       cells. Each unit's grid offset, distance in CELLS, and cardinal direction
       FROM the requesting unit are pre-computed as a ready-to-speak
       "<n> cells <direction>" phrase. This is your ground truth.
@@ -101,8 +101,8 @@ integrates three sources of reasoning:
   (3) Your knowledge of small-unit tactics, casualty evacuation, land
       navigation, and risk assessment.
 
-GRID NOTE: positions are cells (col, row). col = west->east (0..19),
-row = north->south (0..19), so south = larger row. Distances are in CELLS
+GRID NOTE: positions are cells (col, row). col = west->east (0..29),
+row = north->south (0..14), so south = larger row. Distances are in CELLS
 (Chebyshev / king-moves), and direction is ONE of the four cardinals:
 north, east, south, west. Reason in cells and cardinal directions only —
 never in meters and never in intercardinals (no "NNE", "northeast").

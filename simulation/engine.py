@@ -11,26 +11,26 @@ logger = logging.getLogger("colonel.engine")
 DIRECTIONS = ["N", "S", "E", "W"]
 
 # Adversary target zone — friendly HQ area (left side of grid)
-TARGET_X = 3
-TARGET_Y = 10
+TARGET_X = 4
+TARGET_Y = 7
 
 # Combat constants
 DAMAGE_SOLDIER = 3     # soldiers/commanders deal 3 dmg/tick
 DAMAGE_TANK = 8        # tanks deal 8 dmg/tick
-COMBAT_RANGE = 2       # Chebyshev distance
+COMBAT_RANGE = 3       # Chebyshev distance
 COMBAT_ROLES = {"soldier", "tank", "commander", "scout"}
 HEAL_PER_TICK = 15
-HEAL_RANGE = 1         # must be adjacent
+HEAL_RANGE = 2         # must be adjacent
 MEDIC_ROLES = {"medical_car", "doctor"}
 
 # Safe zone healing (zone geometry imported from state)
 SAFE_ZONE_HEAL_PER_TICK = 10  # passive heal while inside
 
 # Friendly AI engagement thresholds
-AI_ENGAGE_RANGE = 6    # soldiers notice enemies within this range
-AI_LOCAL_RANGE = 4     # radius to count force balance
-AI_SCOUT_KEEP = 3      # scouts stop this far from enemies
-AI_CMD_DRIFT = 2       # commanders reposition if further than this from centroid
+AI_ENGAGE_RANGE = 8    # soldiers notice enemies within this range
+AI_LOCAL_RANGE = 5     # radius to count force balance
+AI_SCOUT_KEEP = 4      # scouts stop this far from enemies
+AI_CMD_DRIFT = 3       # commanders reposition if further than this from centroid
 
 
 def chebyshev_distance(a: list[int], b: list[int]) -> int:

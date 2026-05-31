@@ -1,0 +1,9 @@
+[project]
+name = "colonel-ai-state"
+version = "0.1.0"
+description = "Colonel AI battlefield state server"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+]

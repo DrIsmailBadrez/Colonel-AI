@@ -9,8 +9,8 @@ logger = logging.getLogger("colonel.state")
 
 # Safe zone boundaries — units cannot enter the enemy faction's zone
 SAFE_ZONE_RADIUS = 2
-SAFE_ZONE_FRIENDLY = (2, 17, SAFE_ZONE_RADIUS)    # bottom-left corner
-SAFE_ZONE_ADVERSARY = (17, 2, SAFE_ZONE_RADIUS)   # top-right corner
+SAFE_ZONE_FRIENDLY = (3, 12, SAFE_ZONE_RADIUS)    # bottom-left corner
+SAFE_ZONE_ADVERSARY = (26, 2, SAFE_ZONE_RADIUS)   # top-right corner
 
 
 def _in_safe_zone(x: int, y: int, zone: tuple[int, int, int]) -> bool:
@@ -29,7 +29,7 @@ def is_enemy_safe_zone(x: int, y: int, faction: str) -> bool:
 class BattlefieldState:
     """Thread-safe battlefield state with WebSocket broadcast on mutation."""
 
-    def __init__(self, grid_w: int = 20, grid_h: int = 20):
+    def __init__(self, grid_w: int = 30, grid_h: int = 15):
         self.grid_w = grid_w
         self.grid_h = grid_h
         self.items: dict[str, WarItem] = {}
